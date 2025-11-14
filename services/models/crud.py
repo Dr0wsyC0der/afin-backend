@@ -1,9 +1,9 @@
 from sqlalchemy.orm import Session
-from models import ProcessModel
-from schemas import ModelCreate, ModelUpdate
+from .models import ProcessModel
+from .schemas import ModelCreate, ModelUpdate
 
 def create_model(db: Session, model_in: ModelCreate):
-    db_model = ProcessModel(**model_in.dict())
+    db_model = ProcessModel(**model_in.model_dump())
     db.add(db_model)
     db.commit()
     db.refresh(db_model)
@@ -19,7 +19,7 @@ def update_model(db: Session, model_id: int, model_in: ModelUpdate):
     db_model = get_model(db, model_id)
     if not db_model:
         return None
-    update_data = model_in.dict(exclude_unset=True)
+    update_data = model_in.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_model, key, value)
     db.commit()

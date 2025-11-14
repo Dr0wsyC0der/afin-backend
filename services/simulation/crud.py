@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
-from models import SimulationRun
+from .models import SimulationRun
+from .engine.simulator import run_simulation
 import time
 
 def create_run(db: Session, model_id: int):

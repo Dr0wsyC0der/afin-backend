@@ -1,11 +1,14 @@
-﻿from fastapi import APIRouter, Depends, BackgroundTasks
+﻿from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 from shared.database import get_db
-from engine.simulator import run_simulation
-import crud, schemas
+from .engine.simulator import run_simulation
+from . import crud, schemas
 
 router = APIRouter()
 
+@router.get("/health")  # ВВЕРХУ!
+def health():
+    return {"status": "ok", "service": "simulation"}
 @router.post("/", response_model=schemas.SimulationOut)
 def start_simulation(
     request: schemas.SimulationRequest,

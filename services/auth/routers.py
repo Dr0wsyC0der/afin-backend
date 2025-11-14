@@ -1,22 +1,33 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, status
+﻿# services/auth/routers.py
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from shared.database import get_db
-import crud, schemas
-from utils.jwt import create_access_token
+from . import crud, schemas
 
-router = APIRouter()
+router = APIRouter(tags=["auth"])
+
+@router.get("/health")
+def health():
+    return {"status": "ok", "service": "auth"}
 
 @router.post("/register", response_model=schemas.UserOut)
-def register(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
-    if crud.get_user_by_email(db, user_in.email):
-        raise HTTPException(status_code=400, detail="Email already registered")
-    return crud.create_user(db, user_in.email, user_in.password)
+def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    try:
+        db_user = crud.get_user_by_email(db, user.email)
+        if db_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        return crud.create_user(db, user)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @router.post("/login", response_model=schemas.Token)
 def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = crud.authenticate_user(db, form.username, form.password)
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(401, "Invalid credentials")
+    from .utils.jwt import create_access_token
     token = create_access_token({"sub": str(user.id)})
-    return {"access_token": token}
+    return {"access_token": token, "token_type": "bearer"}

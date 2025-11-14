@@ -80,56 +80,87 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.test
-    working_dir: /app/services/gateway
+    command: uvicorn services.gateway.main:app --host 0.0.0.0 --port 8000 --reload
+    working_dir: /app
     environment:
       - PYTHONPATH=/app
     ports:
       - "8000:8000"  # ✅ Только gateway открыт наружу
     depends_on: [auth, models, simulation, analytics]
+    networks:
+      - backend
 
   auth:
     build:
       context: .
       dockerfile: Dockerfile.test
-    working_dir: /app/services/auth
+    command: uvicorn services.auth.main:app --host 0.0.0.0 --port 8000 --reload
+    working_dir: /app
+    volumes:
+      - ./services/auth:/app/services/auth
+      - ./shared:/app/shared
     environment:
       - PYTHONPATH=/app
-      - DATABASE_URL=postgresql://afin:secret@db:5432/afin
-    # ❌ Убираем ports - сервис доступен только внутри Docker сети
-    depends_on: [db]
+      # DATABASE_URL НЕ НУЖЕН — берётся из shared.config
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
 
   models:
     build:
       context: .
       dockerfile: Dockerfile.test
-    working_dir: /app/services/models
+    command: uvicorn services.models.main:app --host 0.0.0.0 --port 8000 --reload
+    working_dir: /app
+    volumes:
+      - ./services/models:/app/services/models
+      - ./shared:/app/shared
     environment:
       - PYTHONPATH=/app
       - DATABASE_URL=postgresql://afin:secret@db:5432/afin
-    # ❌ Убираем ports
-    depends_on: [db]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
 
   analytics:
     build:
       context: .
       dockerfile: Dockerfile.test
-    working_dir: /app/services/analytics
+    command: uvicorn services.analytics.main:app --host 0.0.0.0 --port 8000 --reload
+    working_dir: /app
+    volumes:
+      - ./services/analytics:/app/services/analytics
+      - ./shared:/app/shared
     environment:
       - PYTHONPATH=/app
       - DATABASE_URL=postgresql://afin:secret@db:5432/afin
-    # ❌ Убираем ports
-    depends_on: [db]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
 
   simulation:
     build:
       context: .
       dockerfile: Dockerfile.test
-    working_dir: /app/services/simulation
+    command: uvicorn services.simulation.main:app --host 0.0.0.0 --port 8000 --reload
+    working_dir: /app
+    volumes:
+      - ./services/simulation:/app/services/simulation
+      - ./shared:/app/shared
     environment:
       - PYTHONPATH=/app
       - DATABASE_URL=postgresql://afin:secret@db:5432/afin
-    # ❌ Убираем ports
-    depends_on: [db]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
 
   db:
     image: postgres:15
@@ -141,6 +172,17 @@ services:
       - "5432:5432"  # ✅ БД тоже открыта для локальной разработки
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U afin"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
 
 volumes:
   postgres_data:
+
+networks:
+  backend:
+    driver: bridge

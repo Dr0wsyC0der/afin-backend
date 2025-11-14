@@ -1,10 +1,13 @@
 ﻿from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response
 from sqlalchemy.orm import Session
 from shared.database import get_db
-import crud, schemas
-from utils.bpmn import bpmn_to_json, json_to_bpmn
+from . import crud, schemas
+from .utils.bpmn import bpmn_to_json, json_to_bpmn
 
 router = APIRouter()
+@router.get("/health")
+def health():
+    return {"status": "ok", "service": "models"}
 
 @router.post("/", response_model=schemas.ModelOut)
 def create_model(model: schemas.ModelCreate, db: Session = Depends(get_db)):
